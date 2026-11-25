@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E2A20">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Adviento">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<title>Adviento en forma</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;600&display=swap">
+<style>
+/* VOICE: juguetón y directo, como un juego de móvil de un solo gesto
+   IDEA: un calendario de adviento de cartón con puertas que se abren
+   PICTURE: la rejilla de 24 puertas llena la pantalla; la tarjeta que gira es el momento sorpresa
+   COLOUR and TYPE: verde abeto profundo, coral, dorado y crema, igual que las piezas del lienzo; Bricolage para números, Inter para texto
+   LAYOUT: una sola pantalla: cabecera corta, rejilla 4x6, barra inferior; tarjeta a pantalla completa al abrir */
+:root{color-scheme:dark;--bg:#0E2A20;--door:#163A2D;--line:#2E6B53;--ink:#F6EFE3;--mute:#B9C7BE;--coral:#FF8A7E;--gold:#F2C14E;--red:#B3261E}
+*{box-sizing:border-box;min-width:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none}
+button{font:inherit;color:inherit}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+.app{height:100dvh;display:flex;flex-direction:column;gap:14px;padding:calc(env(safe-area-inset-top) + 16px) max(16px,env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 14px) max(16px,env(safe-area-inset-left));max-width:640px;margin:0 auto}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{margin:0;font:800 clamp(30px,8vw,44px)/1 'Bricolage Grotesque',sans-serif;letter-spacing:-1px;text-wrap:balance}
+.count{font-weight:600;color:var(--gold);white-space:nowrap;font-size:15px}
+.gear{width:44px;height:44px;border-radius:50%;border:2px solid var(--line);background:transparent;display:grid;place-items:center;cursor:pointer;flex:none}
+.banner{font-size:14px;color:var(--mute);margin:-4px 0 0}
+.grid{flex:1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(6,minmax(0,1fr));gap:10px}
+.door{position:relative;border-radius:18px;border:3px solid var(--line);background:var(--door);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:6px;text-align:center;min-height:44px;transition:transform .15s ease}
+.door:active{transform:scale(.95)}
+.door .n{font:800 clamp(30px,9vw,52px)/1 'Bricolage Grotesque',sans-serif;color:var(--coral)}
+.door.locked{opacity:.45}
+.door.locked .n{color:var(--mute)}
+.door.open{background:var(--ink);border-color:var(--gold);color:var(--bg)}
+.door.open .n{font-size:clamp(18px,5vw,26px);color:var(--red)}
+.door .nm{font-size:clamp(11px,3vw,14px);font-weight:600;line-height:1.15}
+.door .ok{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:#1F7A52;display:grid;place-items:center}
+.door.shake{animation:shake .4s}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);transform:translate(-50%,20px);background:var(--ink);color:var(--bg);padding:12px 20px;border-radius:999px;font-weight:600;font-size:15px;opacity:0;pointer-events:none;transition:.25s;white-space:nowrap}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.modal{position:fixed;inset:0;background:rgba(6,22,16,.92);display:none;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:calc(env(safe-area-inset-top) + 20px) 22px calc(env(safe-area-inset-bottom) + 20px);z-index:5}
+.modal.on{display:flex;animation:fade .25s both}
+.stage{width:min(88vw,440px);aspect-ratio:8/11;max-height:68dvh;perspective:2000px;animation:pop .45s cubic-bezier(.2,1.4,.4,1) both}
+.card{position:relative;width:100%;height:100%;transform-style:preserve-3d}
+.card.go{animation:wiggle .5s ease-in-out .35s,flip 1s cubic-bezier(.3,.9,.25,1) 1s forwards}
+.card.shown{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;border-radius:32px;backface-visibility:hidden;-webkit-backface-visibility:hidden;display:flex;flex-direction:column}
+.front{background:var(--door);border:5px solid var(--coral);align-items:center;justify-content:center;gap:8px}
+.front .lbl{font-weight:600;letter-spacing:.3em;color:var(--gold);font-size:18px}
+.front .big{font:800 clamp(140px,48vw,230px)/.85 'Bricolage Grotesque',sans-serif;color:var(--coral)}
+.front .q{color:var(--mute);font-size:18px}
+.back{background:var(--ink);color:var(--bg);transform:rotateY(180deg);padding:clamp(22px,7vw,40px);justify-content:space-between}
+.back .top{display:flex;justify-content:space-between;align-items:center}
+.back .d{font:800 30px/1 'Bricolage Grotesque',sans-serif;color:var(--red)}
+.tag{font-size:13px;font-weight:600;letter-spacing:.15em;background:var(--bg);color:var(--gold);border-radius:999px;padding:6px 12px}
+.back h2{margin:0;font:800 clamp(34px,10vw,50px)/1 'Bricolage Grotesque',sans-serif;letter-spacing:-1px;text-wrap:balance}
+.dose{align-self:flex-start;margin-top:14px;background:var(--bg);color:var(--ink);border-radius:16px;padding:10px 18px;font:700 clamp(20px,6vw,26px)/1.15 'Bricolage Grotesque',sans-serif}
+.cue{margin:0;font-size:17px;line-height:1.4;color:#3D5248}
+.acts{display:flex;gap:12px;opacity:0;animation:fade .3s 1.9s forwards}
+.btn{min-height:52px;border-radius:999px;border:none;padding:0 30px;font:800 20px 'Bricolage Grotesque',sans-serif;cursor:pointer}
+.btn.y{background:var(--gold);color:var(--bg)}
+.btn.g{background:transparent;border:2px solid var(--line);color:var(--mute);font:600 16px Inter,sans-serif}
+.sheet{position:fixed;inset:auto 0 0 0;background:#163A2D;border-radius:24px 24px 0 0;padding:22px 20px calc(env(safe-area-inset-bottom) + 22px);transform:translateY(105%);transition:transform .25s;z-index:6;max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.sheet.on{transform:none}
+.sheet h3{margin:0;font:800 24px 'Bricolage Grotesque',sans-serif}
+.row{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:44px}
+.row small{display:block;color:var(--mute);font-size:13px}
+.sw{appearance:none;width:52px;height:32px;border-radius:999px;background:var(--line);position:relative;cursor:pointer;flex:none;margin:0;transition:.2s}
+.sw::after{content:'';position:absolute;top:4px;left:4px;width:24px;height:24px;border-radius:50%;background:var(--ink);transition:.2s}
+.sw:checked{background:var(--gold)}.sw:checked::after{left:24px}
+.sw:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+@keyframes pop{from{transform:scale(.55);opacity:0}to{transform:none;opacity:1}}
+@keyframes flip{to{transform:rotateY(180deg)}}
+@keyframes wiggle{25%{transform:rotate(-3deg)}75%{transform:rotate(3deg)}}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.stage,.modal.on{animation:none}.card.go{animation:none;transform:rotateY(180deg)}.acts{animation:none;opacity:1}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Adviento en forma</h1>
+      <div class="count" id="count">0 de 24 hechos</div>
+    </div>
+    <button class="gear" id="gear" type="button" aria-label="Ajustes">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F6EFE3" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>
+    </button>
+  </header>
+  <p class="banner" id="banner"></p>
+  <div class="grid" id="grid"></div>
+</div>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-label="Ejercicio del día">
+  <div class="stage" id="stage">
+    <div class="card" id="card">
+      <div class="face front">
+        <div class="lbl">DÍA</div>
+        <div class="big" id="fN"></div>
+        <div class="q">¿Qué te toca hoy?</div>
+      </div>
+      <div class="face back">
+        <div class="top"><div class="d" id="bD"></div><div class="tag" id="bTag" hidden>RETO</div></div>
+        <div><h2 id="bName"></h2><div class="dose" id="bDose"></div></div>
+        <p class="cue" id="bCue"></p>
+      </div>
+    </div>
+  </div>
+  <div class="acts">
+    <button class="btn g" id="later" type="button">Luego</button>
+    <button class="btn y" id="done" type="button">¡Hecho!</button>
+  </div>
+</div>
+
+<div class="sheet" id="sheet" role="dialog" aria-label="Ajustes">
+  <h3>Ajustes</h3>
+  <label class="row" for="free"><span>Abrir cualquier día<small>Para grabar vídeos antes de tiempo</small></span><input class="sw" type="checkbox" id="free"></label>
+  <div class="row"><span>Empezar de cero<small>Cierra todas las puertas</small></span><button class="btn g" id="reset" type="button">Reiniciar</button></div>
+  <button class="btn y" id="closeS" type="button">Listo</button>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+{
+const DAYS=[
+["Sentadillas","20 repeticiones","Peso en los talones y el pecho arriba. Baja como si fueras a sentarte."],
+["Plancha","30 segundos","Aprieta el glúteo y el abdomen. Que la cadera no se hunda."],
+["Jumping jacks","40 repeticiones","Ritmo constante. Aterriza suave, sobre la parte delantera del pie."],
+["Puente de glúteo","20 repeticiones","Empuja con los talones y aguanta un segundo arriba."],
+["Escaladores","30 segundos","Hombros encima de las manos. Rodillas al pecho, rápido."],
+["Zancadas alternas","20 repeticiones","Rodilla de atrás casi al suelo. Tronco recto."],
+["Flexiones","10 repeticiones","Cuerpo en bloque. Si cuesta, apoya las rodillas."],
+["Superman","15 repeticiones","Bocabajo, eleva brazos y piernas a la vez. Mirada al suelo."],
+["Sentadilla en pared","45 segundos","Espalda pegada a la pared y rodillas a 90 grados."],
+["Burpees","10 repeticiones","Al suelo, de pie y salto. Sin prisa: mejor bien hechos."],
+["Plancha lateral","20 s por lado","Cadera alta, en línea con hombros y pies."],
+["Skipping","30 segundos","Rodillas a la altura de la cadera, brazos activos."],
+["Fondos en silla","12 repeticiones","Manos en el borde de la silla. Codos hacia atrás."],
+["Sentadilla con salto","12 repeticiones","Baja, explota hacia arriba y aterriza flexionando."],
+["Dead bug","16 repeticiones","Zona lumbar pegada al suelo. Brazo y pierna contrarios."],
+["Equilibrio con ojos cerrados","30 s por pierna","A una pierna y con los ojos cerrados. ¿Aguantas sin apoyar?"],
+["Elevación de talones","30 repeticiones","Sube despacio, aguanta arriba y baja controlando."],
+["Plancha con toque de hombro","20 repeticiones","Toca el hombro contrario sin que la cadera se balancee."],
+["Saltos de patinador","20 repeticiones","Salto lateral de un pie a otro. Aterriza estable."],
+["Sentadilla búlgara","10 por pierna","Pie de atrás en el sofá. Baja recto, sin inclinarte."],
+["Paso del oso","30 segundos","A cuatro patas, rodillas a un palmo del suelo. Avanza."],
+["Barquita","20 segundos","Tumbado, brazos y piernas estirados y despegados del suelo."],
+["Levántate sin manos","5 repeticiones","Sentado con las piernas cruzadas: ponte de pie sin apoyar las manos."],
+["El regalo final","24 sentadillas + 24 jacks + 24 s de plancha","Todo seguido, en Nochebuena. Has llegado al final."]
+];
+const RETOS=[16,23];
+const KEY='adviento-forma-v1';
+const $=id=>document.getElementById(id);
+let st={opened:[],done:[],free:false};
+try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s&&Array.isArray(s.opened))st=Object.assign(st,s)}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}};
+let cur=null,toastT=null;
+
+const unlockedUpTo=()=>{
+  if(st.free)return 24;
+  const d=new Date(),m=d.getMonth(),day=d.getDate();
+  if(m===11)return Math.min(24,day);
+  if(m===0&&day<=6)return 24;
+  return 0;
+};
+const daysToDec=()=>{
+  const d=new Date();let y=d.getFullYear();if(d.getMonth()===11)return 0;
+  const t=new Date(y,11,1);if(t<d)t.setFullYear(y+1);
+  return Math.ceil((t-new Date(d.getFullYear(),d.getMonth(),d.getDate()))/864e5);
+};
+const check='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L19 7"/></svg>';
+
+function render(){
+  const up=unlockedUpTo();
+  $('grid').innerHTML=DAYS.map((d,i)=>{
+    const n=i+1,op=st.opened.includes(n),dn=st.done.includes(n),lk=n>up&&!op;
+    const cls='door'+(op?' open':'')+(lk?' locked':'');
+    const lab=op?('Día '+n+': '+d[0]+(dn?', hecho':'')):(lk?'Día '+n+', todavía cerrado':'Abrir el día '+n);
+    return '<button type="button" class="'+cls+'" data-n="'+n+'" aria-label="'+lab+'">'+(dn?'<span class="ok">'+check+'</span>':'')+'<span class="n">'+n+'</span>'+(op?'<span class="nm">'+d[0]+'</span>':'')+'</button>';
+  }).join('');
+  $('count').textContent=st.done.length+' de 24 hechos';
+  const left=daysToDec();
+  $('banner').textContent=st.free?'Modo libre: puedes abrir cualquier día.':(up===0&&left>0?'Las puertas se abren el 1 de diciembre. Faltan '+left+(left===1?' día.':' días.'):'Cada mañana se abre una puerta nueva.');
+  $('free').checked=st.free;
+}
+
+function toast(t){const el=$('toast');el.textContent=t;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),1800)}
+
+function openDay(n){
+  const d=DAYS[n-1],again=st.opened.includes(n);
+  cur=n;
+  $('fN').textContent=n;$('bD').textContent='Día '+n;$('bName').textContent=d[0];$('bDose').textContent=d[1];$('bCue').textContent=d[2];
+  $('bTag').hidden=!RETOS.includes(n);
+  $('done').textContent=st.done.includes(n)?'Cerrar':'¡Hecho!';
+  const card=$('card'),stage=$('stage'),acts=document.querySelector('.acts');
+  card.className='card';stage.style.animation='none';acts.style.animation='none';
+  void card.offsetWidth;
+  stage.style.animation='';acts.style.animation='';
+  card.className='card '+(again?'shown':'go');
+  if(again){acts.style.animation='fade .3s .2s forwards'}
+  $('modal').classList.add('on');
+  if(!again){st.opened.push(n);save();setTimeout(()=>{try{navigator.vibrate&&navigator.vibrate(30)}catch(e){}},1500)}
+  setTimeout(()=>$('done').focus({preventScroll:true}),again?300:2000);
+}
+function closeModal(markDone){
+  if(markDone&&cur&&!st.done.includes(cur)){st.done.push(cur);save();if(st.done.length===24)setTimeout(()=>toast('¡24 de 24! Feliz Navidad'),300)}
+  $('modal').classList.remove('on');cur=null;render();
+}
+
+$('grid').addEventListener('click',e=>{
+  const b=e.target.closest('.door');if(!b)return;
+  const n=+b.dataset.n;
+  if(b.classList.contains('locked')){b.classList.remove('shake');void b.offsetWidth;b.classList.add('shake');toast('Se abre el '+n+' de diciembre');return}
+  openDay(n);
+});
+$('done').addEventListener('click',()=>closeModal(true));
+$('later').addEventListener('click',()=>closeModal(false));
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if($('modal').classList.contains('on'))closeModal(false);$('sheet').classList.remove('on')}});
+$('gear').addEventListener('click',()=>$('sheet').classList.add('on'));
+$('closeS').addEventListener('click',()=>$('sheet').classList.remove('on'));
+$('free').addEventListener('change',e=>{st.free=e.target.checked;save();render()});
+$('reset').addEventListener('click',()=>{st.opened=[];st.done=[];save();render();toast('Puertas cerradas')});
+render();
+setInterval(render,60000);
+if('serviceWorker' in navigator&&location.protocol==='https:'){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
+}
+</script>
+</body>
+</html>
